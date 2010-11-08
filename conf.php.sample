@@ -1,0 +1,4 @@
+<?php
+	$consumer_key = 'xxxxxxxxxxxxxxxxx';
+	$consumer_secret = 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx';
+?>
