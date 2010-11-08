@@ -2,3 +2,5 @@ twitter re follow tool
 
 twitterでspamを避けつつまとめてfollow返しする為のtool
 サーバーで処理したくないから、極力jsでやるようにした。
+
+使う時はconf.php.sampleをrenameしてシークレットキーとか設定して使ってね。

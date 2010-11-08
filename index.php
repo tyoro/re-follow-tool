@@ -1,8 +1,7 @@
 <?php
 session_start();
 
-$consumer_key = 'FrHOihK1aFQOPdFLRqGQ';
-$consumer_secret = 'BeRNCTK3c1hr6A8jvUe3HbVtBEMQvlUVsE3xH4AI62A';
+include 'conf.php';
   
 include 'HTTP/OAuth/Consumer.php';
 $consumer = new HTTP_OAuth_Consumer($consumer_key, $consumer_secret);
