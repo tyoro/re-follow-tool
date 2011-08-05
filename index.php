@@ -1,4 +1,5 @@
 <?php
+
 session_start();
 
 include 'conf.php';
@@ -50,6 +51,17 @@ if( isset($_GET['api_type'] ) ){
 			$data = $_GET;
 			$method = 'POST';
 			break;
+		case 'statuses_user_timeline':
+			$url .= 'statuses/user_timeline.json';
+			$_GET['count'] = 50;
+			$data = $_GET;
+			$method = 'GET';
+			break;
+		case 'user_show':
+			$url .= 'users/show.json';
+			$data = $_GET;
+			$method = 'GET';
+			break;
 		default:
 			header("HTTP/1.0 404 Not Found");
 			header("Content-type: application/json; charset=utf-8 ");
@@ -57,10 +69,11 @@ if( isset($_GET['api_type'] ) ){
 			exit;
 			break;
 	}
-
-//print $url;
-//print_r($data);
-//exit();
+/*
+print $url;
+print_r($data);
+exit();
+//*/
 	$response = $consumer->sendRequest( $url , $data , $method );
 	
 	header("HTTP/".$response->getVersion()." ".$response->getStatus()." ".$response->getReasonPhrase());
@@ -77,7 +90,7 @@ if( isset($_GET['api_type'] ) ){
 <title>re follow</title>
 <?php
 if( !isset($_SESSION['access_token']) ){
-	$callback = 'http://tyo.ro/re_follow/';
+	$callback = 'http://'.$_SERVER['HTTP_HOST'].'/re_follow/';
 	$consumer->getRequestToken('https://twitter.com/oauth/request_token', $callback);
 
 	$_SESSION['request_token'] = $consumer->getToken();
@@ -105,7 +118,7 @@ select {
 
 var time_zone_list = { Tokyo:'Tokyo', Osaka:'Osaka', Sapporo:'Sapporo' };
 var threshold_val = 3;
-var my_url = 'http://tyo.ro/re_follow/';
+var my_url = 'http://<?php echo $_SERVER['HTTP_HOST']; ?>/re_follow/';
 var error_func = function(r,t,e){ alert( 'error:' + t );};
 var log_str="";
 var user_list = { 're_follow':new Array(), 'no_follow':new Array(), 'following':new Array(), 'spam_follow':new Array()  };
@@ -252,11 +265,15 @@ $( function(){
 		//alert('hoge');
 		//alert($(elm).value);
 		user = all_users[ $(this).val() ];
-		//console.debug(all_users[ $(this).val() ]);
+		created = new Date( user.created_at );
 		$("#user_prof").html(
 			'name:<a target="_blank" href="http://twitter.com/' + user.screen_name + '">'+user.name +' ( ' + user.screen_name + ' ) </a><br />'+
 			'<img src="'+user.profile_background_image_url+'" width=64 height=64 /><br/>'+
-			'bio:'+user.description
+			'bio:'+user.description+
+			'<hr/>'+
+			'follow:'+user.friends_count+'  follower:'+user.followers_count+'  statuses:'+user.statuses_count+'<br/>'+
+			'created at '+created.getFullYear()+' '+(created.getMonth()+1)+'/'+created.getDate()+'<br/>'+
+			'<hr/><button id="analysis" onclick="javascript:analysis(\''+user.id+'\')" >解析</button><div id="'+user.id+'_analysis"></div>'
 		);
 	}
 	$("#re_follow").change(click_draw);
@@ -264,6 +281,34 @@ $( function(){
 	$("#following").change(click_draw);
 	$("#spam_follow").change(click_draw);
 });
+
+
+function analysis( id ){
+	$('#'+id+'_analysis').html('<img src="./img/loading.gif">');
+	$.ajax({
+		//url: 'http://twitter.com/friendships/create.json',
+		//data:{ id: val.value },
+		url: my_url,
+		data: { user_id : jQuery.trim(id), api_type : 'statuses_user_timeline' },
+		//type:'POST',
+		dataType:'jsonp',
+		success:function( json_data ){
+			url=0; rt=0; u_rt=0;
+			$.each( json_data, function(i,val){
+				if( val.text.match(/http/i) ){ url++; }
+				if( val.retweeted ){ rt++; }
+				else if( val.text.match(/RT/i) ){ u_rt++; }
+			});
+			$('#'+id+'_analysis').html(
+				'all:'+json_data.length+'，'+
+				'url:'+url+'，'+
+				'RT:'+rt+'，'+
+				'非公式RT:'+u_rt+'，'
+			);
+		},
+		error:error_func
+	});
+}
 
 function zen_check(str){
     for(var i=0; i<str.length; i++){
@@ -276,7 +321,7 @@ function zen_check(str){
 }
 
 function bio_check(str){
-	var ng_word = new Array( 'ネットビジネス','弁護士','稼ぐ','年収','割引','マーケティング','クーポン','ご紹介' );
+	var ng_word = new Array( 'ビジネス','弁護士','稼ぐ','年収','割引','マーケティング','クーポン','ご紹介','CEO','ＣＥＯ','コンサル','人材','経営','共同購入','運営','通信販売' );
 	for( var i=0; i<ng_word.length ; i++ ){
 		if( str.indexOf( ng_word[i] ) >= 0 ){
 			return false;
@@ -332,7 +377,7 @@ function spam_check( val ){
 	if( val.protected ){
 	}else if( val.status == null || val.status.text == null || val.status.text == "" ){
 		spam_cnt += 3;
-		send_log( name+":最新の発言がありません。spam cnt:"+spam_cnt);
+		send_log( name+":発言がありません。spam cnt:"+spam_cnt);
 	}else if( !zen_check( unescape(val.status.text) ) ){
 		spam_cnt++;
 		send_log( name+":最新の発言に全角文字が含まれません。spam cnt:"+spam_cnt);
@@ -344,7 +389,7 @@ function spam_check( val ){
 </head>
 <body>
 id:<input type="edit" id="nick" />&nbsp;
-<label><input type="checkbox" id="spam_check" >spam check</label><br />
+<label><input type="checkbox" id="spam_check" checked>spam check</label><br />
 <input type="button" id="get_list" value="followers get" ><br />
 <label><input type="checkbox" id="force_check" >force check</label>
 <input type="edit" id="range" size="2" value="1" />page (Pages 1 are 100 user. )<br />
